@@ -5,6 +5,9 @@ import App from './App';
 import './index.css';
 import { SessionProvider } from './context/SessionContext'; // ✅ Correct import
 import socketManager from './socket';
+import './index.css';
+import './App.css';
+
 
 // Auto-connect if token is present
 const token = localStorage.getItem('token');
