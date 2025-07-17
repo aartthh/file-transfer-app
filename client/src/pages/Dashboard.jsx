@@ -135,8 +135,8 @@ export default function Dashboard() {
       addNotification('Connection error. Please check your internet.', 'error');
     });
 
-    sock.on('disconnect', () => {
-      addNotification('Disconnected from server.', 'warning');
+    sock.on('connect', () => {
+      addNotification('connected to server', 'warning');
     });
 
     return () => socketManager.disconnect();
