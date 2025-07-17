@@ -13,7 +13,7 @@ const app = express(); // Create an instance of express
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173'], // Allow both origins
+  origin: ['http://localhost:3000', 'http://localhost:5173', 'https://file-transfer-app-1.onrender.com'], // Allow both origins
   credentials: true
 }));
 // Serve static files from /uploads
@@ -32,6 +32,9 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/filetrans
   console.log('Connected to MongoDB');
 }).catch(err => {
   console.error('MongoDB connection error:', err);
+});
+app.get('/', (req, res) => {
+  res.send('Backend is live!');
 });
 
 
@@ -54,7 +57,8 @@ const io = socketIo(server, {
   cors: {
     origin: [
       'http://localhost:3000',   // React dev
-      'http://localhost:5173'    // Vite dev
+      'http://localhost:5173' , 
+        // Vite dev
     ],
     methods: ["GET", "POST"],
     credentials: true
