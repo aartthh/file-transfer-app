@@ -13,9 +13,14 @@ const app = express(); // Create an instance of express
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'https://file-transfer-app-1.onrender.com', 'https://file-transfer-app-1.onrender.com/register'], // Allow both origins
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://file-transfer-app.onrender.com', // ✅ base URL only
+  ],
   credentials: true
 }));
+
 // Serve static files from /uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -38,19 +43,9 @@ app.get('/', (req, res) => {
 });
 
 
-// Create server (HTTP for development, HTTPS for production)
-let server;
-if (process.env.NODE_ENV === 'production') {
-  // HTTPS server for production
-  const options = {
-    key: fs.readFileSync(path.join(__dirname, 'certs', 'privkey.pem')),
-    cert: fs.readFileSync(path.join(__dirname, 'certs', 'fullchain.pem'))
-  };
-  server = https.createServer(options, app);
-} else {
-  // HTTP server for development
-  server = http.createServer(app);
-}
+const server = http.createServer(app); // use http always
+
+
 
 // Socket.IO setup
 const io = socketIo(server, {
