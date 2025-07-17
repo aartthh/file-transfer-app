@@ -1,14 +1,12 @@
-const express = require('express'); // Import express
+const express = require('express');
 const http = require('http');
-const https = require('https');
-const fs = require('fs');
 const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-const app = express(); // Create an instance of express
+const app = express();
 
 // Middleware
 app.use(express.json());
@@ -16,7 +14,7 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'http://localhost:5173',
-    'https://file-transfer-app.onrender.com', // ✅ base URL only
+    'https://file-transfer-app.onrender.com'
   ],
   credentials: true
 }));
@@ -26,7 +24,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/auth', require('./routes/auth'));
-// Local upload route
 app.use('/api/files', require('./routes/fileRoutes'));
 
 // MongoDB connection
@@ -38,56 +35,48 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/filetrans
 }).catch(err => {
   console.error('MongoDB connection error:', err);
 });
+
+// Health check route for Render
 app.get('/', (req, res) => {
   res.send('Backend is live!');
 });
 
-
-const server = http.createServer(app); // use http always
-
-
+// Create server (HTTP only — let Render handle HTTPS)
+const server = http.createServer(app);
 
 // Socket.IO setup
 const io = socketIo(server, {
   cors: {
     origin: [
-      'http://localhost:3000',   // React dev
-      'http://localhost:5173' , 
-        // Vite dev
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://file-transfer-app.onrender.com'
     ],
     methods: ["GET", "POST"],
     credentials: true
   }
 });
-// Store active users and their socket connections
+
 const activeUsers = new Map();
 const fileTransfers = new Map();
 
 io.on('connection', (socket) => {
-  console.log('User  connected:', socket.id);
+  console.log('User connected:', socket.id);
 
-  // User joins with their username
   socket.on('join', (username) => {
     activeUsers.set(socket.id, { username, socketId: socket.id });
     socket.username = username;
-
-    // Send updated user list to all clients
     io.emit('users-update', Array.from(activeUsers.values()));
     console.log(`${username} joined`);
   });
 
-  // Handle file transfer initiation
   socket.on('initiate-transfer', (data) => {
     const { filename, fileSize, recipientUsername, transferId } = data;
-
-    // Find recipient socket
     const recipientSocket = Array.from(activeUsers.entries())
       .find(([, user]) => user.username === recipientUsername);
 
     if (recipientSocket) {
       const [recipientSocketId] = recipientSocket;
-
-      // Store transfer info
       fileTransfers.set(transferId, {
         senderId: socket.id,
         senderUsername: socket.username,
@@ -100,7 +89,6 @@ io.on('connection', (socket) => {
         receivedSize: 0
       });
 
-      // Notify recipient
       io.to(recipientSocketId).emit('transfer-request', {
         senderUsername: socket.username,
         filename,
@@ -114,56 +102,11 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('file-complete', ({ transferId, filename, fileData, fileSize }) => {
-    console.log(`Received file ${filename} (${fileSize} bytes)`);
-
-    // Convert base64 back to binary
-    const byteArray = Uint8Array.from(atob(fileData), c => c.charCodeAt(0));
-
-    // Create a Blob from the byteArray
-    const blob = new Blob([byteArray]);
-
-    // Create a download link and trigger it
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-
-    // Clean up
-    URL.revokeObjectURL(link.href);
-    document.body.removeChild(link);
-  });
-
-  // Handle transfer acceptance
-  socket.on('accept-transfer', (data) => {
-    const { transferId } = data;
-    const transfer = fileTransfers.get(transferId);
-
-    if (transfer) {
-      io.to(transfer.senderId).emit('transfer-accepted', { transferId });
-      transfer.accepted = true;
-    }
-  });
-
-
-  // Handle transfer rejection
-  socket.on('reject-transfer', (data) => {
-    const { transferId } = data;
-    const transfer = fileTransfers.get(transferId);
-
-    if (transfer) {
-      io.to(transfer.senderId).emit('transfer-rejected', { transferId });
-      fileTransfers.delete(transferId);
-    }
-  });
-
   socket.on('file-chunk', (data) => {
     const { transferId, chunk, chunkIndex, isLastChunk } = data;
     const transfer = fileTransfers.get(transferId);
 
     if (transfer && transfer.accepted) {
-      // ✅ Convert to Buffer before storing
       transfer.chunks[chunkIndex] = Buffer.from(chunk);
       transfer.receivedSize += chunk.length;
 
@@ -184,7 +127,7 @@ io.on('connection', (socket) => {
       });
 
       if (isLastChunk) {
-        const fileBuffer = Buffer.concat(transfer.chunks); // ✅ will work now
+        const fileBuffer = Buffer.concat(transfer.chunks);
         io.to(transfer.recipientId).emit('file-complete', {
           transferId,
           filename: transfer.filename,
@@ -202,29 +145,41 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle user disconnect
+  socket.on('accept-transfer', ({ transferId }) => {
+    const transfer = fileTransfers.get(transferId);
+    if (transfer) {
+      transfer.accepted = true;
+      io.to(transfer.senderId).emit('transfer-accepted', { transferId });
+    }
+  });
+
+  socket.on('reject-transfer', ({ transferId }) => {
+    const transfer = fileTransfers.get(transferId);
+    if (transfer) {
+      io.to(transfer.senderId).emit('transfer-rejected', { transferId });
+      fileTransfers.delete(transferId);
+    }
+  });
+
   socket.on('disconnect', () => {
     if (socket.username) {
       console.log(`${socket.username} disconnected`);
     }
-
     activeUsers.delete(socket.id);
 
-    // Clean up any pending transfers
     for (const [transferId, transfer] of fileTransfers.entries()) {
       if (transfer.senderId === socket.id || transfer.recipientId === socket.id) {
-        fileTransfers.delete(transferId);
-        // Notify the other party
         const otherId = transfer.senderId === socket.id ? transfer.recipientId : transfer.senderId;
         io.to(otherId).emit('transfer-cancelled', { transferId });
+        fileTransfers.delete(transferId);
       }
     }
 
-    // Send updated user list to all clients
     io.emit('users-update', Array.from(activeUsers.values()));
   });
 });
 
+// Use dynamic port from Render
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
