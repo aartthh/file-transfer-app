@@ -50,7 +50,7 @@ const io = socketIo(server, {
     origin: [
       'http://localhost:3000',
       'http://localhost:5173',
-      'https://file-transfer-app.onrender.com'
+      'https://file-transfer-app-1.onrender.com/'
     ],
     methods: ["GET", "POST"],
     credentials: true
