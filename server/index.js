@@ -13,7 +13,7 @@ const app = express(); // Create an instance of express
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'https://file-transfer-app-1.onrender.com'], // Allow both origins
+  origin: ['http://localhost:3000', 'http://localhost:5173', 'https://file-transfer-app-1.onrender.com', 'https://file-transfer-app-1.onrender.com/register'], // Allow both origins
   credentials: true
 }));
 // Serve static files from /uploads
