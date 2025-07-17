@@ -25,6 +25,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Routes
 app.use('/auth', require('./routes/auth'));
 app.use('/api/files', require('./routes/fileRoutes'));
+app.use(express.static(path.join(__dirname, '../client/dist'))); // Update if different
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+});
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/filetransfer', {
