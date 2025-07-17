@@ -7,24 +7,27 @@ const userSchema = new mongoose.Schema({
     unique: true,
     trim: true,
     minlength: 3,
-    maxlength: 20
+    maxlength: 30,
+    lowercase: true,
+    match: /^[a-zA-Z0-9_-]+$/
   },
   password: {
     type: String,
     required: true,
-    minlength: 6
+    minlength: 6,
+    maxlength: 100
   },
-  createdAt: {
+  lastLogin: {
     type: Date,
     default: Date.now
   },
-  lastLogin: {
+  createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
-// Index for faster queries
+// Create index for better performance
 userSchema.index({ username: 1 });
 
 module.exports = mongoose.model('User', userSchema);

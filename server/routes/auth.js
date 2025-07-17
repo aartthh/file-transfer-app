@@ -22,30 +22,61 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+// Helper function to validate username
+const validateUsername = (username) => {
+  if (!username || username.length < 3) {
+    return 'Username must be at least 3 characters long';
+  }
+  if (username.length > 30) {
+    return 'Username must be less than 30 characters';
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    return 'Username can only contain letters, numbers, underscores, and hyphens';
+  }
+  return null;
+};
+
+// Helper function to validate password
+const validatePassword = (password) => {
+  if (!password || password.length < 6) {
+    return 'Password must be at least 6 characters long';
+  }
+  if (password.length > 100) {
+    return 'Password must be less than 100 characters';
+  }
+  return null;
+};
+
 // @route   POST /auth/register
 // @desc    Register a new user
 router.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Basic validation
-    if (!username || !password) {
-      return res.status(400).json({ msg: 'Please provide username and password' });
+    // Enhanced validation
+    const usernameError = validateUsername(username);
+    if (usernameError) {
+      return res.status(400).json({ msg: usernameError });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ msg: 'Password must be at least 6 characters' });
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      return res.status(400).json({ msg: passwordError });
     }
 
-    const existingUser = await User.findOne({ username });
+    // Check if user already exists (case-insensitive)
+    const existingUser = await User.findOne({ 
+      username: { $regex: new RegExp(`^${username}$`, 'i') } 
+    });
     if (existingUser) {
-      return res.status(400).json({ msg: 'User already exists' });
+      return res.status(400).json({ msg: 'Username already exists' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password with higher salt rounds for better security
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = new User({
-      username,
+      username: username.toLowerCase(), // Store username in lowercase
       password: hashedPassword,
     });
 
@@ -67,6 +98,12 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
+    
+    // Handle MongoDB duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({ msg: 'Username already exists' });
+    }
+    
     res.status(500).json({ msg: 'Server error during registration' });
   }
 });
@@ -81,7 +118,10 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ msg: 'Please provide username and password' });
     }
 
-    const user = await User.findOne({ username });
+    // Find user (case-insensitive)
+    const user = await User.findOne({ 
+      username: { $regex: new RegExp(`^${username}$`, 'i') } 
+    });
     if (!user) {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
@@ -90,6 +130,10 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
+
+    // Update last login timestamp (optional)
+    user.lastLogin = new Date();
+    await user.save();
 
     const token = jwt.sign(
       { userId: user._id, username: user.username },
@@ -123,6 +167,57 @@ router.get('/me', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// @route   POST /auth/logout
+// @desc    Logout user (optional - mainly for client-side token removal)
+router.post('/logout', verifyToken, async (req, res) => {
+  try {
+    // In a stateless JWT system, logout is mainly handled client-side
+    // But you could implement a token blacklist here if needed
+    res.json({ msg: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ msg: 'Server error during logout' });
+  }
+});
+
+// @route   PUT /auth/change-password
+// @desc    Change user password
+router.put('/change-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ msg: 'Please provide current and new password' });
+    }
+
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      return res.status(400).json({ msg: passwordError });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ msg: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+    user.password = hashedNewPassword;
+    await user.save();
+
+    res.json({ msg: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ msg: 'Server error during password change' });
   }
 });
 

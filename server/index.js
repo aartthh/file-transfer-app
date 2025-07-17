@@ -14,7 +14,7 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'http://localhost:5173',
-    'https://file-transfer-app.onrender.com'
+    process.env.FRONTEND_URL || 'https://file-transfer-app-1.onrender.com'
   ],
   credentials: true
 }));
@@ -50,7 +50,7 @@ const io = socketIo(server, {
     origin: [
       'http://localhost:3000',
       'http://localhost:5173',
-      'https://file-transfer-app-1.onrender.com/'
+      'https://file-transfer-app-1.onrender.com'  // ✅ Fixed: Updated Socket.IO CORS too
     ],
     methods: ["GET", "POST"],
     credentials: true
