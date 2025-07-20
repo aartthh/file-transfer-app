@@ -27,7 +27,5 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Create index for better performance
-userSchema.index({ username: 1 });
 
 module.exports = mongoose.model('User', userSchema);
