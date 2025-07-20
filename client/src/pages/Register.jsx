@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import api from '../api';
 import { useNavigate, Link } from 'react-router-dom';
+import { useSession } from '../context/SessionContext'; // Add this import
 
 export default function Register() {
   const [form, setForm] = useState({ username: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useSession(); // Add this line
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -32,18 +34,69 @@ export default function Register() {
     }
 
     try {
+      console.log('🚀 Attempting registration with:', { username: form.username });
+      
       const response = await api.post('/auth/register', {
         username: form.username,
         password: form.password
       });
       
-      // Store token and user data
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      console.log('✅ Registration response:', response.data);
       
+      // Check if response has required fields
+      if (!response.data.token) {
+        throw new Error('No token received from server');
+      }
+      if (!response.data.user) {
+        throw new Error('No user data received from server');
+      }
+      
+      // Store token
+      localStorage.setItem('token', response.data.token);
+      console.log('💾 Token stored in localStorage');
+      
+      // Update session context (THIS WAS MISSING!)
+      login(response.data.user);
+      console.log('🔐 Session context updated');
+      
+      console.log('🧭 Navigating to dashboard...');
       navigate('/dashboard');
+      
     } catch (err) {
-      setError(err.response?.data?.msg || 'Registration failed');
+      console.error('❌ Registration error:', err);
+      console.error('📄 Full error object:', err.response);
+      
+      let errorMessage = 'Registration failed';
+      
+      // Handle specific error cases
+      if (err.response?.status === 400) {
+        // Check for user already exists error
+        if (err.response.data?.msg?.toLowerCase().includes('user') && 
+            (err.response.data.msg.toLowerCase().includes('exist') || 
+             err.response.data.msg.toLowerCase().includes('taken') ||
+             err.response.data.msg.toLowerCase().includes('already'))) {
+          errorMessage = 'Username already exists. Please choose a different username.';
+        } else if (err.response.data?.message?.toLowerCase().includes('user') && 
+                   (err.response.data.message.toLowerCase().includes('exist') || 
+                    err.response.data.message.toLowerCase().includes('taken') ||
+                    err.response.data.message.toLowerCase().includes('already'))) {
+          errorMessage = 'Username already exists. Please choose a different username.';
+        } else {
+          // Use server error message if available
+          errorMessage = err.response.data?.msg || err.response.data?.message || 'Invalid registration data';
+        }
+      } else if (err.response?.status === 409) {
+        // 409 Conflict - typically used for duplicate resources
+        errorMessage = 'Username already exists. Please choose a different username.';
+      } else if (err.response?.data?.msg) {
+        errorMessage = err.response.data.msg;
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

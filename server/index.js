@@ -1,12 +1,16 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config();
+const connectDB = require('./config/db'); // Import your db connection
 
 const app = express();
+
+// Connect to MongoDB using your db.js file
+connectDB();
 
 // Middleware
 app.use(express.json());
@@ -14,6 +18,7 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'http://localhost:5173',
+    'http://localhost:5174', // Add this line
     process.env.FRONTEND_URL || 'https://file-transfer-app-1.onrender.com'
   ],
   credentials: true
@@ -26,15 +31,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/auth', require('./routes/auth'));
 app.use('/api/files', require('./routes/fileRoutes'));
 
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/filetransfer', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
-  console.log('Connected to MongoDB');
-}).catch(err => {
-  console.error('MongoDB connection error:', err);
-});
+// Remove the duplicate mongoose.connect() call - it's now handled by connectDB()
 
 // Health check route for Render
 app.get('/', (req, res) => {
@@ -50,7 +47,8 @@ const io = socketIo(server, {
     origin: [
       'http://localhost:3000',
       'http://localhost:5173',
-      'https://file-transfer-app-1.onrender.com'  // ✅ Fixed: Updated Socket.IO CORS too
+      'http://localhost:5174', // Add this line
+      'https://file-transfer-app-1.onrender.com'
     ],
     methods: ["GET", "POST"],
     credentials: true
