@@ -4,6 +4,18 @@ A full‑stack file transfer app built with **React**, **Socket.IO**, and **Expr
 
 ---
 
+## ▶️ How to Use
+
+To successfully send and receive a file:
+
+1. **Sender**: Log in, select a file, and click the **Send** button.
+2. **Receiver**: Open the app as another user (in a different browser or device), and **accept** the file transfer.
+3. **Back to Sender**: Switch back to the **sender tab** — this is required to trigger the transfer process.
+4. **Wait**: Once the sender sees **`Status: End`**, the transfer is complete.
+5. **Receiver Download**: Switch to the **receiver tab** — the file will **automatically download**.
+
+> ⚠️ Ensure both users are online during the transfer process.
+
 ## 📋 Table of Contents
 
 1. [Project Overview](#project-overview)
