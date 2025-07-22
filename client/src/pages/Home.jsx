@@ -5,6 +5,7 @@ import { ShieldCheck, Activity, Maximize2, Lock, BarChart2, File } from 'lucide-
 import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
 import HeroHeader from '../components/HeroHeader';
+import { useEffect } from 'react';
 const features = [
   {
     title: 'Fast & Secure',
@@ -39,10 +40,14 @@ const stories = [
 ];
 
 export default function Home() {
+
+  useEffect(() => {
+    document.title = "FileXpress – Secure File Transfer"; // Customize as needed
+  }, []);
   return (
-   
+
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-100 text-gray-800 scroll-smooth">
-        <Navbar />
+      <Navbar />
 
       <HeroHeader />
 
@@ -89,7 +94,7 @@ export default function Home() {
           ))}
         </div>
       </section>
-       <Footer />
+      <Footer />
     </div>
   );
 }
