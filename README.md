@@ -156,7 +156,6 @@ VITE_CRYPTO_SECRET=your_encryption_key
 * **Active users** tracked in `Map(socketId → username)`
 * Events:
 
-  * `join`: user announces presence
   * `initiate-transfer`: sender requests transfer
   * `file-chunk`: chunked data streaming
   * `transfer-accepted`/`rejected`/`progress`/`complete`
@@ -223,8 +222,7 @@ Secret key stored in `VITE_CRYPTO_SECRET` and used by `crypto.js` utilities.
 
 ### Render Setup
 
-* **Backend**: service root `server`, start `npm start`
-* **Frontend**: static site root `client`, build `npm run build`, serve `dist`
+Click on this link - https://file-transfer-app-1.onrender.com/
 * Environment variables set in Render dashboard
 
 ---
